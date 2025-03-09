@@ -1,7 +1,6 @@
 // 4D Visualizer
-// JavaScript implementation
 
-// Canvas setup
+// Canvas and context
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 let width = canvas.width;
@@ -14,9 +13,8 @@ const freeRotationBtn = document.getElementById('free-rotation-btn');
 const controlsContainer = document.getElementById('controls-container');
 const toggleControlsBtn = document.getElementById('toggle-controls');
 const controlsHeader = document.getElementById('controls-header');
-const canvasContainer = document.getElementById('canvas-container');
 
-// Knob UI elements
+// Knob elements (sliders, indicators, values, reset buttons)
 const xySlider = document.getElementById('xy-slider');
 const xzSlider = document.getElementById('xz-slider');
 const xwSlider = document.getElementById('xw-slider');
@@ -24,7 +22,6 @@ const yzSlider = document.getElementById('yz-slider');
 const ywSlider = document.getElementById('yw-slider');
 const zwSlider = document.getElementById('zw-slider');
 
-// Knob indicator elements
 const xyIndicator = document.getElementById('xy-indicator');
 const xzIndicator = document.getElementById('xz-indicator');
 const xwIndicator = document.getElementById('xw-indicator');
@@ -32,7 +29,6 @@ const yzIndicator = document.getElementById('yz-indicator');
 const ywIndicator = document.getElementById('yw-indicator');
 const zwIndicator = document.getElementById('zw-indicator');
 
-// Knob value display elements
 const xyValue = document.getElementById('xy-value');
 const xzValue = document.getElementById('xz-value');
 const xwValue = document.getElementById('xw-value');
@@ -40,7 +36,6 @@ const yzValue = document.getElementById('yz-value');
 const ywValue = document.getElementById('yw-value');
 const zwValue = document.getElementById('zw-value');
 
-// Reset button UI elements
 const xyResetBtn = document.getElementById('xy-reset');
 const xzResetBtn = document.getElementById('xz-reset');
 const xwResetBtn = document.getElementById('xw-reset');
@@ -48,14 +43,24 @@ const yzResetBtn = document.getElementById('yz-reset');
 const ywResetBtn = document.getElementById('yw-reset');
 const zwResetBtn = document.getElementById('zw-reset');
 
+// Slider reference array for wheel events
+const allSliders = [
+    { slider: xySlider, reset: xyResetBtn, value: xyValue, indicator: xyIndicator, index: 0 },
+    { slider: xzSlider, reset: xzResetBtn, value: xzValue, indicator: xzIndicator, index: 1 },
+    { slider: xwSlider, reset: xwResetBtn, value: xwValue, indicator: xwIndicator, index: 2 },
+    { slider: yzSlider, reset: yzResetBtn, value: yzValue, indicator: yzIndicator, index: 3 },
+    { slider: ywSlider, reset: ywResetBtn, value: ywValue, indicator: ywIndicator, index: 4 },
+    { slider: zwSlider, reset: zwResetBtn, value: zwValue, indicator: zwIndicator, index: 5 }
+];
+
 // Colors
 const BLACK = 'rgb(0, 0, 0)';
 const WHITE = 'rgb(255, 255, 255)';
 
 // State variables
-let zoomFactor = 1.0;
-let angles = [0, 0, 0, 0, 0, 0]; // XY, XZ, XW, YZ, YW, ZW
-let rotationRates = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01]; // Rotation rates for each angle
+let zoomFactor = 4.0; // Start with higher zoom 
+let angles = [0, 0, 0, 0, 0, 0]; // XY, XZ, XW, YZ, YW, ZW rotation angles
+let rotationRates = [0, 0, 0, 0, 0, 0]; // Will be set to random small values on init
 let currentShapeIndex = 0;
 let vertices4D = [];
 let edges = [];
@@ -63,8 +68,7 @@ let shapeName = '';
 let scale = calculateScale();
 let isMouseRotating = false;
 let previousMousePos = { x: 0, y: 0 };
-let manualRotation = false;
-let freeRotation = false;
+let freeRotation = true;
 let controlsExpanded = false;
 let controlsPosUpdated = false;
 
@@ -77,9 +81,13 @@ const sin = Math.sin;
 const cos = Math.cos;
 const PI = Math.PI;
 
-// Shape Generation Functions
+// Generate a random small value for rotation
+function generateRandomRotationValue() {
+    return (Math.random() - 0.5) * 0.012; // Value between -0.006 and 0.006
+}
+
+// Shape generators (hypercube, 5-cell, 16-cell, 24-cell, 8-cell)
 function generateHypercube() {
-    // Generate vertices and edges for a 4D hypercube (tesseract)
     const vertices = [];
     
     // 16 vertices of a 4D hypercube
@@ -99,35 +107,25 @@ function generateHypercube() {
         for (let j = i + 1; j < vertices.length; j++) {
             let diff = 0;
             for (let k = 0; k < 4; k++) {
-                if (vertices[i][k] !== vertices[j][k]) {
-                    diff++;
-                }
+                if (vertices[i][k] !== vertices[j][k]) diff++;
             }
-            if (diff === 1) {
-                edges.push([i, j]);
-            }
+            if (diff === 1) edges.push([i, j]);
         }
     }
     
-    return {
-        vertices: vertices,
-        edges: edges,
-        name: "Hypercube"
-    };
+    return { vertices, edges, name: "Hypercube" };
 }
 
 function generate5Cell() {
-    // Generate vertices and edges for a 5-cell (4D simplex)
-    const r = 1.5; // Scale factor for better visualization
+    const r = 1.5;
     const vertices = [
-        [0, 0, 0, -r/4],  // Base vertex
-        [r, 0, 0, r/4],    // Remaining vertices in a tetrahedral arrangement
+        [0, 0, 0, -r/4],
+        [r, 0, 0, r/4],
         [-r/3, r*0.94, 0, r/4],
         [-r/3, -r*0.47, r*0.82, r/4],
         [-r/3, -r*0.47, -r*0.82, r/4]
     ];
     
-    // All vertices connect to each other in a 5-cell
     const edges = [];
     for (let i = 0; i < vertices.length; i++) {
         for (let j = i + 1; j < vertices.length; j++) {
@@ -135,28 +133,18 @@ function generate5Cell() {
         }
     }
     
-    return {
-        vertices: vertices,
-        edges: edges,
-        name: "5-cell"
-    };
+    return { vertices, edges, name: "5-cell" };
 }
 
 function generate16Cell() {
-    // Generate vertices and edges for a 16-cell (4D hexadecachoron)
     const r = 1.0;
     const vertices = [
-        [r, 0, 0, 0],
-        [-r, 0, 0, 0],
-        [0, r, 0, 0],
-        [0, -r, 0, 0],
-        [0, 0, r, 0],
-        [0, 0, -r, 0],
-        [0, 0, 0, r],
-        [0, 0, 0, -r]
+        [r, 0, 0, 0], [-r, 0, 0, 0],
+        [0, r, 0, 0], [0, -r, 0, 0],
+        [0, 0, r, 0], [0, 0, -r, 0],
+        [0, 0, 0, r], [0, 0, 0, -r]
     ];
     
-    // Connect vertices to form the 16-cell
     const edges = [];
     for (let i = 0; i < vertices.length; i++) {
         for (let j = i + 1; j < vertices.length; j++) {
@@ -164,19 +152,13 @@ function generate16Cell() {
         }
     }
     
-    return {
-        vertices: vertices,
-        edges: edges,
-        name: "16-cell"
-    };
+    return { vertices, edges, name: "16-cell" };
 }
 
 function generate24Cell() {
-    // Generate vertices and edges for a 24-cell
     const vertices = [];
     const r = 1.0;
     
-    // Permutations of (±1, ±1, 0, 0)
     for (let x of [-r, r]) {
         for (let y of [-r, r]) {
             vertices.push([x, y, 0, 0]);
@@ -188,60 +170,40 @@ function generate24Cell() {
         }
     }
     
-    // Connect vertices that are at distance √2
     const edges = [];
     for (let i = 0; i < vertices.length; i++) {
         for (let j = i + 1; j < vertices.length; j++) {
             const dist = distance(vertices[i], vertices[j]);
-            if (Math.abs(dist - Math.sqrt(2)) < 0.01) { // Allow for small floating-point errors
+            if (Math.abs(dist - Math.sqrt(2)) < 0.01) {
                 edges.push([i, j]);
             }
         }
     }
     
-    return {
-        vertices: vertices,
-        edges: edges,
-        name: "24-cell"
-    };
+    return { vertices, edges, name: "24-cell" };
 }
 
 function generate8Cell() {
-    // Generate vertices and edges for an 8-cell (4D octahedron)
     const r = 1.5;
     const vertices = [
-        [r, 0, 0, 0],
-        [-r, 0, 0, 0],
-        [0, r, 0, 0],
-        [0, -r, 0, 0],
-        [0, 0, r, 0],
-        [0, 0, -r, 0],
-        [0, 0, 0, r],
-        [0, 0, 0, -r]
+        [r, 0, 0, 0], [-r, 0, 0, 0],
+        [0, r, 0, 0], [0, -r, 0, 0],
+        [0, 0, r, 0], [0, 0, -r, 0],
+        [0, 0, 0, r], [0, 0, 0, -r]
     ];
     
-    // Connect vertices to form the edges of the octahedron
     const edges = [];
     for (let i = 0; i < vertices.length; i++) {
         for (let j = i + 1; j < vertices.length; j++) {
-            // Only connect if they share one non-zero coordinate
             let sameZeros = 0;
             for (let k = 0; k < 4; k++) {
-                if (vertices[i][k] === 0 && vertices[j][k] === 0) {
-                    sameZeros++;
-                }
+                if (vertices[i][k] === 0 && vertices[j][k] === 0) sameZeros++;
             }
-            if (sameZeros === 3) { // They both have 3 zero coordinates
-                edges.push([i, j]);
-            }
+            if (sameZeros === 3) edges.push([i, j]);
         }
     }
     
-    return {
-        vertices: vertices,
-        edges: edges,
-        name: "8-cell"
-    };
+    return { vertices, edges, name: "8-cell" };
 }
 
 // Helper function to calculate distance between two points
@@ -253,7 +215,7 @@ function distance(p1, p2) {
     return Math.sqrt(sum);
 }
 
-// Define all available shapes
+// All shape generators
 const shapeGenerators = [
     generateHypercube,
     generate5Cell,
@@ -262,17 +224,15 @@ const shapeGenerators = [
     generate8Cell
 ];
 
-// Projection and rotation matrices
+// 4D rotation and projection functions
 function rotate4D(points, angleXY, angleXZ, angleXW, angleYZ, angleYW, angleZW) {
-    // XY rotation
+    // Create rotation matrices
     const rotationXY = [
         [cos(angleXY), -sin(angleXY), 0, 0],
         [sin(angleXY), cos(angleXY), 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1]
+        [0, 0, 1, 0], [0, 0, 0, 1]
     ];
     
-    // XZ rotation
     const rotationXZ = [
         [cos(angleXZ), 0, -sin(angleXZ), 0],
         [0, 1, 0, 0],
@@ -280,15 +240,12 @@ function rotate4D(points, angleXY, angleXZ, angleXW, angleYZ, angleYW, angleZW) 
         [0, 0, 0, 1]
     ];
     
-    // XW rotation
     const rotationXW = [
         [cos(angleXW), 0, 0, -sin(angleXW)],
-        [0, 1, 0, 0],
-        [0, 0, 1, 0],
+        [0, 1, 0, 0], [0, 0, 1, 0],
         [sin(angleXW), 0, 0, cos(angleXW)]
     ];
     
-    // YZ rotation
     const rotationYZ = [
         [1, 0, 0, 0],
         [0, cos(angleYZ), -sin(angleYZ), 0],
@@ -296,7 +253,6 @@ function rotate4D(points, angleXY, angleXZ, angleXW, angleYZ, angleYW, angleZW) 
         [0, 0, 0, 1]
     ];
     
-    // YW rotation
     const rotationYW = [
         [1, 0, 0, 0],
         [0, cos(angleYW), 0, -sin(angleYW)],
@@ -304,16 +260,14 @@ function rotate4D(points, angleXY, angleXZ, angleXW, angleYZ, angleYW, angleZW) 
         [0, sin(angleYW), 0, cos(angleYW)]
     ];
     
-    // ZW rotation
     const rotationZW = [
-        [1, 0, 0, 0],
-        [0, 1, 0, 0],
+        [1, 0, 0, 0], [0, 1, 0, 0],
         [0, 0, cos(angleZW), -sin(angleZW)],
         [0, 0, sin(angleZW), cos(angleZW)]
     ];
     
-    // Apply rotations sequentially
-    let rotated = JSON.parse(JSON.stringify(points)); // Deep copy
+    // Deep copy input points and apply rotations sequentially
+    let rotated = JSON.parse(JSON.stringify(points));
     rotated = multiplyMatrices(rotated, transpose(rotationXY));
     rotated = multiplyMatrices(rotated, transpose(rotationXZ));
     rotated = multiplyMatrices(rotated, transpose(rotationXW));
@@ -324,7 +278,7 @@ function rotate4D(points, angleXY, angleXZ, angleXW, angleYZ, angleYW, angleZW) 
     return rotated;
 }
 
-// Matrix operations
+// Matrix helpers
 function transpose(matrix) {
     const rows = matrix.length;
     const cols = matrix[0].length;
@@ -355,8 +309,8 @@ function multiplyMatrices(points, matrix) {
     return result;
 }
 
-function project4DTo3D(points4D, wPlane = 2) {
-    // Perform perspective projection from 4D to 3D
+// Projection functions
+function project4DTo3D(points4D) {
     const distance = 4;
     const points3D = [];
     
@@ -372,8 +326,7 @@ function project4DTo3D(points4D, wPlane = 2) {
     return points3D;
 }
 
-function project3DTo2D(points3D, zPlane = 2) {
-    // Perform perspective projection from 3D to 2D
+function project3DTo2D(points3D) {
     const distance = 4;
     const points2D = [];
     
@@ -388,43 +341,37 @@ function project3DTo2D(points3D, zPlane = 2) {
     return points2D;
 }
 
-// Calculate scale based on window size
 function calculateScale() {
     return Math.min(width, height) / 3 * zoomFactor;
 }
 
-// Position the controls panel correctly
+// UI Control functions
 function positionControlsPanel() {
     const canvasRect = canvas.getBoundingClientRect();
-    const containerRect = controlsContainer.getBoundingClientRect();
     
-    // Position the control container to the right of the canvas
+    // Position control container relative to canvas
     const rightEdgeOfCanvas = canvasRect.right;
     const verticalCenter = canvasRect.top + canvasRect.height / 2;
     
-    // Set position for collapsed state (centered vertically with the canvas, just to the right)
     if (!controlsExpanded) {
-        const buttonSize = 60; // The collapsed button size
+        // Collapsed state
+        const buttonSize = 60;
         controlsContainer.style.left = `${rightEdgeOfCanvas + 20}px`;
         controlsContainer.style.top = `${verticalCenter - buttonSize / 2}px`;
     } else {
-        // For expanded state, align top with the canvas
+        // Expanded state
         controlsContainer.style.left = `${rightEdgeOfCanvas + 20}px`;
         controlsContainer.style.top = `${canvasRect.top}px`;
     }
     
-    // Reset transform to avoid conflicts with dragging
     if (!isDraggingControls) {
         controlsContainer.style.transform = 'none';
     }
     
-    // Make sure the right property is not interfering
     controlsContainer.style.right = 'auto';
-    
     controlsPosUpdated = true;
 }
 
-// Function to change shape
 function changeShape() {
     currentShapeIndex = (currentShapeIndex + 1) % shapeGenerators.length;
     const shapeData = shapeGenerators[currentShapeIndex]();
@@ -432,24 +379,22 @@ function changeShape() {
     edges = shapeData.edges;
     shapeName = shapeData.name;
     
-    // Keep the name for internal reference but don't display it
     if (shapeNameElement) {
         shapeNameElement.textContent = '';
     }
 }
 
-// Function to reset a specific rotation rate to zero
 function resetRotationRate(index) {
     rotationRates[index] = 0;
     updateSliderValues();
     updateKnobIndicators();
 }
 
-// Function to update slider values from rotation rates
 function updateSliderValues() {
-    // Clamp values to ensure they're within slider range
+    // Clamp values to slider range
     const clampValue = (val) => Math.max(-0.05, Math.min(0.05, val));
     
+    // Update slider positions
     xySlider.value = clampValue(rotationRates[0]);
     xzSlider.value = clampValue(rotationRates[1]);
     xwSlider.value = clampValue(rotationRates[2]);
@@ -466,15 +411,14 @@ function updateSliderValues() {
     zwValue.textContent = parseFloat(zwSlider.value).toFixed(3);
 }
 
-// Function to update knob indicator positions
 function updateKnobIndicators() {
-    // Map slider value to rotation angle
-    // -0.05 => -135deg, 0 => 0deg, 0.05 => 135deg
+    // Map slider value to rotation angle (-0.05 => -135deg, 0 => 0deg, 0.05 => 135deg)
     const valueToAngle = (value) => {
         const normalizedValue = (parseFloat(value) + 0.05) / 0.1; // 0 to 1
         return -135 + normalizedValue * 270; // -135 to 135 degrees
     };
     
+    // Apply rotations to indicators
     xyIndicator.style.transform = `rotate(${valueToAngle(xySlider.value)}deg)`;
     xzIndicator.style.transform = `rotate(${valueToAngle(xzSlider.value)}deg)`;
     xwIndicator.style.transform = `rotate(${valueToAngle(xwSlider.value)}deg)`;
@@ -483,7 +427,6 @@ function updateKnobIndicators() {
     zwIndicator.style.transform = `rotate(${valueToAngle(zwSlider.value)}deg)`;
 }
 
-// Function to toggle the controls panel
 function toggleControls() {
     controlsExpanded = !controlsExpanded;
     if (controlsExpanded) {
@@ -494,48 +437,50 @@ function toggleControls() {
         toggleControlsBtn.textContent = '≡';
     }
     
-    // Re-position controls after toggling
-    setTimeout(positionControlsPanel, 50); // Small delay to let the transition start
+    setTimeout(positionControlsPanel, 50);
 }
 
-// Handle controls dragging
+// Event handlers
+function handleResize() {
+    const container = document.getElementById('canvas-container');
+    const containerWidth = container.clientWidth;
+    
+    width = Math.min(containerWidth - 40, 800);
+    height = Math.min(window.innerHeight - 100, 600);
+    
+    canvas.width = width;
+    canvas.height = height;
+    
+    scale = calculateScale();
+    positionControlsPanel();
+}
+
 function handleControlsDragStart(e) {
-    // Only allow dragging from the header or when collapsed
     if (e.target === controlsHeader || e.target.parentNode === controlsHeader || !controlsExpanded) {
         isDraggingControls = true;
         
-        // Get the current position of the controls container
         const rect = controlsContainer.getBoundingClientRect();
-        
-        // Calculate the offset from the mouse position to the top-left corner of the container
         controlsOffset = {
             x: e.clientX - rect.left,
             y: e.clientY - rect.top
         };
         
-        // Prevent default behavior to avoid text selection
         e.preventDefault();
     }
 }
 
 function handleControlsDragMove(e) {
     if (isDraggingControls) {
-        // Calculate the new position
         const newLeft = e.clientX - controlsOffset.x;
         const newTop = e.clientY - controlsOffset.y;
         
-        // Ensure the controls stay within the viewport
         const maxLeft = window.innerWidth - controlsContainer.offsetWidth;
         const maxTop = window.innerHeight - controlsContainer.offsetHeight;
         
-        // Apply the new position
         controlsContainer.style.left = `${Math.max(0, Math.min(newLeft, maxLeft))}px`;
         controlsContainer.style.top = `${Math.max(0, Math.min(newTop, maxTop))}px`;
         
-        // Reset the transform since we're using absolute positioning
         controlsContainer.style.transform = 'none';
-        
-        // Remove the right property to allow left positioning
         controlsContainer.style.right = 'auto';
         
         e.preventDefault();
@@ -546,168 +491,113 @@ function handleControlsDragEnd() {
     isDraggingControls = false;
 }
 
-// Initialize the first shape
-function init() {
-    // Set up the first shape
-    changeShape();
+// Handle knob wheel events - this is one of the key new features
+function handleKnobWheel(e) {
+    // Check if hovering over a knob
+    let isOverKnob = false;
+    let activeKnobData = null;
     
-    // Set up event listeners
-    window.addEventListener('resize', handleResize);
-    canvas.addEventListener('wheel', handleWheel);
-    canvas.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('keydown', handleKeyDown);
+    for (const knobData of allSliders) {
+        const rect = knobData.slider.getBoundingClientRect();
+        const containerRect = knobData.slider.parentNode.getBoundingClientRect();
+        
+        // Check if mouse is over knob or its container
+        if (
+            (e.clientX >= rect.left && e.clientX <= rect.right &&
+             e.clientY >= rect.top && e.clientY <= rect.bottom) ||
+            (e.clientX >= containerRect.left && e.clientX <= containerRect.right &&
+             e.clientY >= containerRect.top && e.clientY <= containerRect.bottom)
+        ) {
+            isOverKnob = true;
+            activeKnobData = knobData;
+            break;
+        }
+    }
     
-    // Controls toggle
-    toggleControlsBtn.addEventListener('click', toggleControls);
-    
-    // Draggable controls
-    controlsContainer.addEventListener('mousedown', handleControlsDragStart);
-    window.addEventListener('mousemove', handleControlsDragMove);
-    window.addEventListener('mouseup', handleControlsDragEnd);
-    
-    // Shape change and free rotation
-    changeShapeBtn.addEventListener('click', changeShape);
-    freeRotationBtn.addEventListener('click', () => {
-        freeRotation = !freeRotation;
-        freeRotationBtn.textContent = freeRotation ? "Stop" : "Free";
-    });
-    
-    // Add event listeners for sliders and update knob indicators
-    xySlider.addEventListener('input', () => { 
-        rotationRates[0] = parseFloat(xySlider.value); 
-        xyValue.textContent = parseFloat(xySlider.value).toFixed(3);
+    if (isOverKnob && activeKnobData) {
+        e.preventDefault();
+        
+        // Get current value and update based on wheel direction
+        let value = parseFloat(activeKnobData.slider.value);
+        const increment = 0.001; // Small increment for fine control
+        
+        if (e.deltaY < 0) {
+            value += increment; // Scroll up = increase
+        } else {
+            value -= increment; // Scroll down = decrease
+        }
+        
+        // Clamp value to min/max range
+        value = Math.max(parseFloat(activeKnobData.slider.min), 
+                Math.min(parseFloat(activeKnobData.slider.max), value));
+        
+        // Update the slider, rotation rate and UI
+        activeKnobData.slider.value = value;
+        rotationRates[activeKnobData.index] = value;
+        activeKnobData.value.textContent = value.toFixed(3);
         updateKnobIndicators();
-    });
-    xzSlider.addEventListener('input', () => { 
-        rotationRates[1] = parseFloat(xzSlider.value); 
-        xzValue.textContent = parseFloat(xzSlider.value).toFixed(3);
-        updateKnobIndicators();
-    });
-    xwSlider.addEventListener('input', () => { 
-        rotationRates[2] = parseFloat(xwSlider.value); 
-        xwValue.textContent = parseFloat(xwSlider.value).toFixed(3);
-        updateKnobIndicators();
-    });
-    yzSlider.addEventListener('input', () => { 
-        rotationRates[3] = parseFloat(yzSlider.value); 
-        yzValue.textContent = parseFloat(yzSlider.value).toFixed(3);
-        updateKnobIndicators();
-    });
-    ywSlider.addEventListener('input', () => { 
-        rotationRates[4] = parseFloat(ywSlider.value); 
-        ywValue.textContent = parseFloat(ywSlider.value).toFixed(3);
-        updateKnobIndicators();
-    });
-    zwSlider.addEventListener('input', () => { 
-        rotationRates[5] = parseFloat(zwSlider.value); 
-        zwValue.textContent = parseFloat(zwSlider.value).toFixed(3);
-        updateKnobIndicators();
-    });
-    
-    // Add event listeners for reset buttons
-    xyResetBtn.addEventListener('click', () => { resetRotationRate(0); });
-    xzResetBtn.addEventListener('click', () => { resetRotationRate(1); });
-    xwResetBtn.addEventListener('click', () => { resetRotationRate(2); });
-    yzResetBtn.addEventListener('click', () => { resetRotationRate(3); });
-    ywResetBtn.addEventListener('click', () => { resetRotationRate(4); });
-    zwResetBtn.addEventListener('click', () => { resetRotationRate(5); });
-    
-    // Initialize slider values and knob indicators
-    updateSliderValues();
-    updateKnobIndicators();
-    
-    // Position the controls initially
-    // Wait for canvas to be properly sized
-    setTimeout(() => {
-        handleResize();
-        toggleControls(); // Start with controls expanded
-        positionControlsPanel();
-    }, 100);
-    
-    // Start animation loop
-    requestAnimationFrame(animate);
+    } else {
+        // Normal canvas zoom wheel handling
+        e.preventDefault();
+        zoomFactor *= e.deltaY < 0 ? 1.1 : 0.9;
+        zoomFactor = Math.max(0.1, Math.min(zoomFactor, 10.0));
+        scale = calculateScale();
+    }
 }
 
-// Event handlers
-function handleResize() {
-    // Get the container width for responsive sizing
-    const container = document.getElementById('canvas-container');
-    const containerWidth = container.clientWidth;
-    
-    // Set canvas size based on container
-    width = Math.min(containerWidth - 40, 800);
-    height = Math.min(window.innerHeight - 100, 600);
-    
-    canvas.width = width;
-    canvas.height = height;
-    
-    scale = calculateScale();
-    
-    // Reposition controls when canvas size changes
-    positionControlsPanel();
+// Handle knob middle-click to reset (another key feature)
+function handleKnobMiddleClick(e) {
+    if (e.button === 1) { // Middle mouse button
+        e.preventDefault();
+        
+        for (const knobData of allSliders) {
+            const rect = knobData.slider.getBoundingClientRect();
+            const containerRect = knobData.slider.parentNode.getBoundingClientRect();
+            
+            if (
+                (e.clientX >= rect.left && e.clientX <= rect.right &&
+                 e.clientY >= rect.top && e.clientY <= rect.bottom) ||
+                (e.clientX >= containerRect.left && e.clientX <= containerRect.right &&
+                 e.clientY >= containerRect.top && e.clientY <= containerRect.bottom)
+            ) {
+                resetRotationRate(knobData.index);
+                break;
+            }
+        }
+    }
 }
 
-function handleWheel(event) {
-    event.preventDefault();
-    // Adjust zoom with mouse wheel
-    zoomFactor *= event.deltaY < 0 ? 1.1 : 0.9;
-    // Limit zoom range to avoid extreme scaling
-    zoomFactor = Math.max(0.1, Math.min(zoomFactor, 10.0));
-    scale = calculateScale();
-}
-
-function handleMouseDown(event) {
-    if (event.button === 2) { // Right mouse button
-        event.preventDefault();
+// Mouse handling for rotation
+function handleMouseDown(e) {
+    if (e.button === 2) { // Right mouse button
+        e.preventDefault();
         isMouseRotating = true;
-        previousMousePos = { x: event.clientX, y: event.clientY };
-        manualRotation = true; // User is now manually rotating
+        previousMousePos = { x: e.clientX, y: e.clientY };
         
-        // Prevent context menu
-        canvas.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-        });
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     }
 }
 
-function handleMouseUp(event) {
-    if (event.button === 2) { // Right mouse button
-        isMouseRotating = false;
-    }
+function handleMouseUp(e) {
+    if (e.button === 2) isMouseRotating = false;
 }
 
-function handleMouseMove(event) {
+function handleMouseMove(e) {
     if (isMouseRotating) {
-        const currentMousePos = { x: event.clientX, y: event.clientY };
-        const dx = currentMousePos.x - previousMousePos.x;
-        const dy = currentMousePos.y - previousMousePos.y;
+        const dx = e.clientX - previousMousePos.x;
+        const dy = e.clientY - previousMousePos.y;
         
-        // Adjust rotation angles based on mouse movement
-        // Horizontal movement controls XY rotation
         angles[0] += dx * 0.01;
-        // Vertical movement controls XZ rotation
         angles[1] += dy * 0.01;
         
-        // Update rotation rates to match mouse movement
-        rotationRates[0] = dx * 0.01;
-        rotationRates[1] = dy * 0.01;
-        
-        // Update slider values to reflect the new rotation rates
-        updateSliderValues();
-        updateKnobIndicators();
-        
-        previousMousePos = currentMousePos;
+        previousMousePos = { x: e.clientX, y: e.clientY };
     }
 }
 
-function handleKeyDown(event) {
-    if (event.code === 'Space') {
-        event.preventDefault();
+function handleKeyDown(e) {
+    if (e.code === 'Space') {
+        e.preventDefault();
         changeShape();
-    } else if (event.code === 'Escape') {
-        // Optional: add any cleanup or reset functionality
     }
 }
 
@@ -715,13 +605,9 @@ function handleKeyDown(event) {
 function animate() {
     // Update rotation angles if in free rotation mode
     if (freeRotation) {
-        // Apply rotation rates from sliders to all six 4D rotation angles
-        angles[0] += rotationRates[0]; // XY rotation
-        angles[1] += rotationRates[1]; // XZ rotation
-        angles[2] += rotationRates[2]; // XW rotation
-        angles[3] += rotationRates[3]; // YZ rotation
-        angles[4] += rotationRates[4]; // YW rotation
-        angles[5] += rotationRates[5]; // ZW rotation
+        for (let i = 0; i < 6; i++) {
+            angles[i] += rotationRates[i];
+        }
     }
     
     // Rotate and project
@@ -759,7 +645,7 @@ function animate() {
         ctx.fill();
     }
     
-    // Check if the controls need to be positioned (initial load)
+    // Position controls if needed
     if (!controlsPosUpdated) {
         positionControlsPanel();
     }
@@ -768,5 +654,92 @@ function animate() {
     requestAnimationFrame(animate);
 }
 
-// Initialize when the page loads
+// Initialize the app
+function init() {
+    // Set random rotation rates
+    for (let i = 0; i < 6; i++) {
+        rotationRates[i] = generateRandomRotationValue();
+    }
+    
+    // Set up the first shape
+    changeShape();
+    
+    // Set up event listeners
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('wheel', handleKnobWheel, { passive: false });
+    canvas.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('mousedown', handleKnobMiddleClick);
+    
+    // Controls toggle and drag
+    toggleControlsBtn.addEventListener('click', toggleControls);
+    controlsContainer.addEventListener('mousedown', handleControlsDragStart);
+    window.addEventListener('mousemove', handleControlsDragMove);
+    window.addEventListener('mouseup', handleControlsDragEnd);
+    
+    // Shape change and free rotation buttons
+    changeShapeBtn.addEventListener('click', changeShape);
+    freeRotationBtn.addEventListener('click', () => {
+        freeRotation = !freeRotation;
+        freeRotationBtn.textContent = freeRotation ? "Stop" : "Free";
+    });
+    
+    // Add slider input listeners
+    xySlider.addEventListener('input', () => { 
+        rotationRates[0] = parseFloat(xySlider.value); 
+        xyValue.textContent = parseFloat(xySlider.value).toFixed(3);
+        updateKnobIndicators();
+    });
+    xzSlider.addEventListener('input', () => { 
+        rotationRates[1] = parseFloat(xzSlider.value); 
+        xzValue.textContent = parseFloat(xzSlider.value).toFixed(3);
+        updateKnobIndicators();
+    });
+    xwSlider.addEventListener('input', () => { 
+        rotationRates[2] = parseFloat(xwSlider.value); 
+        xwValue.textContent = parseFloat(xwSlider.value).toFixed(3);
+        updateKnobIndicators();
+    });
+    yzSlider.addEventListener('input', () => { 
+        rotationRates[3] = parseFloat(yzSlider.value); 
+        yzValue.textContent = parseFloat(yzSlider.value).toFixed(3);
+        updateKnobIndicators();
+    });
+    ywSlider.addEventListener('input', () => { 
+        rotationRates[4] = parseFloat(ywSlider.value); 
+        ywValue.textContent = parseFloat(ywSlider.value).toFixed(3);
+        updateKnobIndicators();
+    });
+    zwSlider.addEventListener('input', () => { 
+        rotationRates[5] = parseFloat(zwSlider.value); 
+        zwValue.textContent = parseFloat(zwSlider.value).toFixed(3);
+        updateKnobIndicators();
+    });
+    
+    // Add reset button listeners
+    xyResetBtn.addEventListener('click', () => resetRotationRate(0));
+    xzResetBtn.addEventListener('click', () => resetRotationRate(1));
+    xwResetBtn.addEventListener('click', () => resetRotationRate(2));
+    yzResetBtn.addEventListener('click', () => resetRotationRate(3));
+    ywResetBtn.addEventListener('click', () => resetRotationRate(4));
+    zwResetBtn.addEventListener('click', () => resetRotationRate(5));
+    
+    // Initialize UI
+    updateSliderValues();
+    updateKnobIndicators();
+    
+    // Position the controls
+    setTimeout(() => {
+        handleResize();
+        toggleControls(); // Start with controls expanded
+        positionControlsPanel();
+    }, 100);
+    
+    // Start animation loop
+    requestAnimationFrame(animate);
+}
+
+// Start the app when the window loads
 window.onload = init;
