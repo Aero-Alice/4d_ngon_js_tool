@@ -10,10 +10,21 @@ let height = canvas.height;
 // UI elements
 const shapeNameElement = document.getElementById('shape-name');
 const changeShapeBtn = document.getElementById('change-shape-btn');
+const freeRotationBtn = document.getElementById('free-rotation-btn');
 const xySlider = document.getElementById('xy-slider');
 const xzSlider = document.getElementById('xz-slider');
-const zySlider = document.getElementById('zy-slider');
-const freeRotationBtn = document.getElementById('free-rotation-btn');
+const xwSlider = document.getElementById('xw-slider');
+const yzSlider = document.getElementById('yz-slider');
+const ywSlider = document.getElementById('yw-slider');
+const zwSlider = document.getElementById('zw-slider');
+
+// Reset button UI elements
+const xyResetBtn = document.getElementById('xy-reset');
+const xzResetBtn = document.getElementById('xz-reset');
+const xwResetBtn = document.getElementById('xw-reset');
+const yzResetBtn = document.getElementById('yz-reset');
+const ywResetBtn = document.getElementById('yw-reset');
+const zwResetBtn = document.getElementById('zw-reset');
 
 // Colors
 const BLACK = 'rgb(0, 0, 0)';
@@ -22,6 +33,7 @@ const WHITE = 'rgb(255, 255, 255)';
 // State variables
 let zoomFactor = 1.0;
 let angles = [0, 0, 0, 0, 0, 0]; // XY, XZ, XW, YZ, YW, ZW
+let rotationRates = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01]; // Rotation rates for each angle
 let currentShapeIndex = 0;
 let vertices4D = [];
 let edges = [];
@@ -367,6 +379,25 @@ function changeShape() {
     }
 }
 
+// Function to reset a specific rotation rate to zero
+function resetRotationRate(index) {
+    rotationRates[index] = 0;
+    updateSliderValues();
+}
+
+// Function to update slider values from rotation rates
+function updateSliderValues() {
+    // Clamp values to ensure they're within slider range
+    const clampValue = (val) => Math.max(-0.05, Math.min(0.05, val));
+    
+    xySlider.value = clampValue(rotationRates[0]);
+    xzSlider.value = clampValue(rotationRates[1]);
+    xwSlider.value = clampValue(rotationRates[2]);
+    yzSlider.value = clampValue(rotationRates[3]);
+    ywSlider.value = clampValue(rotationRates[4]);
+    zwSlider.value = clampValue(rotationRates[5]);
+}
+
 // Initialize the first shape
 function init() {
     // Set up the first shape
@@ -382,23 +413,30 @@ function init() {
     
     changeShapeBtn.addEventListener('click', changeShape);
     
-    // Add event listeners for new controls
-    xySlider.addEventListener('input', () => {
-        angles[0] = parseFloat(xySlider.value);
-    });
-    
-    xzSlider.addEventListener('input', () => {
-        angles[1] = parseFloat(xzSlider.value);
-    });
-    
-    zySlider.addEventListener('input', () => {
-        angles[2] = parseFloat(zySlider.value);
-    });
-
+    // Add event listener for free rotation toggle
     freeRotationBtn.addEventListener('click', () => {
         freeRotation = !freeRotation;
         freeRotationBtn.textContent = freeRotation ? "Stop" : "Free";
     });
+    
+    // Add event listeners for sliders
+    xySlider.addEventListener('input', () => { rotationRates[0] = parseFloat(xySlider.value); });
+    xzSlider.addEventListener('input', () => { rotationRates[1] = parseFloat(xzSlider.value); });
+    xwSlider.addEventListener('input', () => { rotationRates[2] = parseFloat(xwSlider.value); });
+    yzSlider.addEventListener('input', () => { rotationRates[3] = parseFloat(yzSlider.value); });
+    ywSlider.addEventListener('input', () => { rotationRates[4] = parseFloat(ywSlider.value); });
+    zwSlider.addEventListener('input', () => { rotationRates[5] = parseFloat(zwSlider.value); });
+    
+    // Add event listeners for reset buttons
+    xyResetBtn.addEventListener('click', () => { resetRotationRate(0); });
+    xzResetBtn.addEventListener('click', () => { resetRotationRate(1); });
+    xwResetBtn.addEventListener('click', () => { resetRotationRate(2); });
+    yzResetBtn.addEventListener('click', () => { resetRotationRate(3); });
+    ywResetBtn.addEventListener('click', () => { resetRotationRate(4); });
+    zwResetBtn.addEventListener('click', () => { resetRotationRate(5); });
+    
+    // Initialize slider values from default rotation rates
+    updateSliderValues();
     
     // Start animation loop
     requestAnimationFrame(animate);
@@ -461,6 +499,13 @@ function handleMouseMove(event) {
         // Vertical movement controls XZ rotation
         angles[1] += dy * 0.01;
         
+        // Update rotation rates to match mouse movement
+        rotationRates[0] = dx * 0.01;
+        rotationRates[1] = dy * 0.01;
+        
+        // Update slider values to reflect the new rotation rates
+        updateSliderValues();
+        
         previousMousePos = currentMousePos;
     }
 }
@@ -478,14 +523,13 @@ function handleKeyDown(event) {
 function animate() {
     // Update rotation angles if in free rotation mode
     if (freeRotation) {
-        angles[0] += 0.02; // XY rotation
-        angles[1] += 0.02; // XZ rotation
-        angles[2] += 0.02; // ZY rotation
-        
-        // Update slider positions to reflect current angles
-        xySlider.value = angles[0];
-        xzSlider.value = angles[1];
-        zySlider.value = angles[2];
+        // Apply rotation rates from sliders to all six 4D rotation angles
+        angles[0] += rotationRates[0]; // XY rotation
+        angles[1] += rotationRates[1]; // XZ rotation
+        angles[2] += rotationRates[2]; // XW rotation
+        angles[3] += rotationRates[3]; // YZ rotation
+        angles[4] += rotationRates[4]; // YW rotation
+        angles[5] += rotationRates[5]; // ZW rotation
     }
     
     // Rotate and project
