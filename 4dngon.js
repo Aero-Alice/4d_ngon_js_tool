@@ -648,7 +648,7 @@ function init() {
     changeShapeBtn.addEventListener('click', changeShape);
     freeRotationBtn.addEventListener('click', () => {
         freeRotation = !freeRotation;
-        freeRotationBtn.textContent = freeRotation ? "Stop" : "Free";
+        freeRotationBtn.textContent = freeRotation ? "Freeze" : "Rotate";
     });
     
     // Add slider input listeners
