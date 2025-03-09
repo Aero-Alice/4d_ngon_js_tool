@@ -11,12 +11,34 @@ let height = canvas.height;
 const shapeNameElement = document.getElementById('shape-name');
 const changeShapeBtn = document.getElementById('change-shape-btn');
 const freeRotationBtn = document.getElementById('free-rotation-btn');
+const controlsContainer = document.getElementById('controls-container');
+const toggleControlsBtn = document.getElementById('toggle-controls');
+const controlsHeader = document.getElementById('controls-header');
+const canvasContainer = document.getElementById('canvas-container');
+
+// Knob UI elements
 const xySlider = document.getElementById('xy-slider');
 const xzSlider = document.getElementById('xz-slider');
 const xwSlider = document.getElementById('xw-slider');
 const yzSlider = document.getElementById('yz-slider');
 const ywSlider = document.getElementById('yw-slider');
 const zwSlider = document.getElementById('zw-slider');
+
+// Knob indicator elements
+const xyIndicator = document.getElementById('xy-indicator');
+const xzIndicator = document.getElementById('xz-indicator');
+const xwIndicator = document.getElementById('xw-indicator');
+const yzIndicator = document.getElementById('yz-indicator');
+const ywIndicator = document.getElementById('yw-indicator');
+const zwIndicator = document.getElementById('zw-indicator');
+
+// Knob value display elements
+const xyValue = document.getElementById('xy-value');
+const xzValue = document.getElementById('xz-value');
+const xwValue = document.getElementById('xw-value');
+const yzValue = document.getElementById('yz-value');
+const ywValue = document.getElementById('yw-value');
+const zwValue = document.getElementById('zw-value');
 
 // Reset button UI elements
 const xyResetBtn = document.getElementById('xy-reset');
@@ -43,6 +65,12 @@ let isMouseRotating = false;
 let previousMousePos = { x: 0, y: 0 };
 let manualRotation = false;
 let freeRotation = false;
+let controlsExpanded = false;
+let controlsPosUpdated = false;
+
+// Drag functionality variables
+let isDraggingControls = false;
+let controlsOffset = { x: 0, y: 0 };
 
 // Math helper functions
 const sin = Math.sin;
@@ -365,6 +393,37 @@ function calculateScale() {
     return Math.min(width, height) / 3 * zoomFactor;
 }
 
+// Position the controls panel correctly
+function positionControlsPanel() {
+    const canvasRect = canvas.getBoundingClientRect();
+    const containerRect = controlsContainer.getBoundingClientRect();
+    
+    // Position the control container to the right of the canvas
+    const rightEdgeOfCanvas = canvasRect.right;
+    const verticalCenter = canvasRect.top + canvasRect.height / 2;
+    
+    // Set position for collapsed state (centered vertically with the canvas, just to the right)
+    if (!controlsExpanded) {
+        const buttonSize = 60; // The collapsed button size
+        controlsContainer.style.left = `${rightEdgeOfCanvas + 20}px`;
+        controlsContainer.style.top = `${verticalCenter - buttonSize / 2}px`;
+    } else {
+        // For expanded state, align top with the canvas
+        controlsContainer.style.left = `${rightEdgeOfCanvas + 20}px`;
+        controlsContainer.style.top = `${canvasRect.top}px`;
+    }
+    
+    // Reset transform to avoid conflicts with dragging
+    if (!isDraggingControls) {
+        controlsContainer.style.transform = 'none';
+    }
+    
+    // Make sure the right property is not interfering
+    controlsContainer.style.right = 'auto';
+    
+    controlsPosUpdated = true;
+}
+
 // Function to change shape
 function changeShape() {
     currentShapeIndex = (currentShapeIndex + 1) % shapeGenerators.length;
@@ -383,6 +442,7 @@ function changeShape() {
 function resetRotationRate(index) {
     rotationRates[index] = 0;
     updateSliderValues();
+    updateKnobIndicators();
 }
 
 // Function to update slider values from rotation rates
@@ -396,6 +456,94 @@ function updateSliderValues() {
     yzSlider.value = clampValue(rotationRates[3]);
     ywSlider.value = clampValue(rotationRates[4]);
     zwSlider.value = clampValue(rotationRates[5]);
+    
+    // Update displayed values
+    xyValue.textContent = parseFloat(xySlider.value).toFixed(3);
+    xzValue.textContent = parseFloat(xzSlider.value).toFixed(3);
+    xwValue.textContent = parseFloat(xwSlider.value).toFixed(3);
+    yzValue.textContent = parseFloat(yzSlider.value).toFixed(3);
+    ywValue.textContent = parseFloat(ywSlider.value).toFixed(3);
+    zwValue.textContent = parseFloat(zwSlider.value).toFixed(3);
+}
+
+// Function to update knob indicator positions
+function updateKnobIndicators() {
+    // Map slider value to rotation angle
+    // -0.05 => -135deg, 0 => 0deg, 0.05 => 135deg
+    const valueToAngle = (value) => {
+        const normalizedValue = (parseFloat(value) + 0.05) / 0.1; // 0 to 1
+        return -135 + normalizedValue * 270; // -135 to 135 degrees
+    };
+    
+    xyIndicator.style.transform = `rotate(${valueToAngle(xySlider.value)}deg)`;
+    xzIndicator.style.transform = `rotate(${valueToAngle(xzSlider.value)}deg)`;
+    xwIndicator.style.transform = `rotate(${valueToAngle(xwSlider.value)}deg)`;
+    yzIndicator.style.transform = `rotate(${valueToAngle(yzSlider.value)}deg)`;
+    ywIndicator.style.transform = `rotate(${valueToAngle(ywSlider.value)}deg)`;
+    zwIndicator.style.transform = `rotate(${valueToAngle(zwSlider.value)}deg)`;
+}
+
+// Function to toggle the controls panel
+function toggleControls() {
+    controlsExpanded = !controlsExpanded;
+    if (controlsExpanded) {
+        controlsContainer.classList.add('expanded');
+        toggleControlsBtn.textContent = '×';
+    } else {
+        controlsContainer.classList.remove('expanded');
+        toggleControlsBtn.textContent = '≡';
+    }
+    
+    // Re-position controls after toggling
+    setTimeout(positionControlsPanel, 50); // Small delay to let the transition start
+}
+
+// Handle controls dragging
+function handleControlsDragStart(e) {
+    // Only allow dragging from the header or when collapsed
+    if (e.target === controlsHeader || e.target.parentNode === controlsHeader || !controlsExpanded) {
+        isDraggingControls = true;
+        
+        // Get the current position of the controls container
+        const rect = controlsContainer.getBoundingClientRect();
+        
+        // Calculate the offset from the mouse position to the top-left corner of the container
+        controlsOffset = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+        
+        // Prevent default behavior to avoid text selection
+        e.preventDefault();
+    }
+}
+
+function handleControlsDragMove(e) {
+    if (isDraggingControls) {
+        // Calculate the new position
+        const newLeft = e.clientX - controlsOffset.x;
+        const newTop = e.clientY - controlsOffset.y;
+        
+        // Ensure the controls stay within the viewport
+        const maxLeft = window.innerWidth - controlsContainer.offsetWidth;
+        const maxTop = window.innerHeight - controlsContainer.offsetHeight;
+        
+        // Apply the new position
+        controlsContainer.style.left = `${Math.max(0, Math.min(newLeft, maxLeft))}px`;
+        controlsContainer.style.top = `${Math.max(0, Math.min(newTop, maxTop))}px`;
+        
+        // Reset the transform since we're using absolute positioning
+        controlsContainer.style.transform = 'none';
+        
+        // Remove the right property to allow left positioning
+        controlsContainer.style.right = 'auto';
+        
+        e.preventDefault();
+    }
+}
+
+function handleControlsDragEnd() {
+    isDraggingControls = false;
 }
 
 // Initialize the first shape
@@ -411,21 +559,52 @@ function init() {
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('keydown', handleKeyDown);
     
-    changeShapeBtn.addEventListener('click', changeShape);
+    // Controls toggle
+    toggleControlsBtn.addEventListener('click', toggleControls);
     
-    // Add event listener for free rotation toggle
+    // Draggable controls
+    controlsContainer.addEventListener('mousedown', handleControlsDragStart);
+    window.addEventListener('mousemove', handleControlsDragMove);
+    window.addEventListener('mouseup', handleControlsDragEnd);
+    
+    // Shape change and free rotation
+    changeShapeBtn.addEventListener('click', changeShape);
     freeRotationBtn.addEventListener('click', () => {
         freeRotation = !freeRotation;
         freeRotationBtn.textContent = freeRotation ? "Stop" : "Free";
     });
     
-    // Add event listeners for sliders
-    xySlider.addEventListener('input', () => { rotationRates[0] = parseFloat(xySlider.value); });
-    xzSlider.addEventListener('input', () => { rotationRates[1] = parseFloat(xzSlider.value); });
-    xwSlider.addEventListener('input', () => { rotationRates[2] = parseFloat(xwSlider.value); });
-    yzSlider.addEventListener('input', () => { rotationRates[3] = parseFloat(yzSlider.value); });
-    ywSlider.addEventListener('input', () => { rotationRates[4] = parseFloat(ywSlider.value); });
-    zwSlider.addEventListener('input', () => { rotationRates[5] = parseFloat(zwSlider.value); });
+    // Add event listeners for sliders and update knob indicators
+    xySlider.addEventListener('input', () => { 
+        rotationRates[0] = parseFloat(xySlider.value); 
+        xyValue.textContent = parseFloat(xySlider.value).toFixed(3);
+        updateKnobIndicators();
+    });
+    xzSlider.addEventListener('input', () => { 
+        rotationRates[1] = parseFloat(xzSlider.value); 
+        xzValue.textContent = parseFloat(xzSlider.value).toFixed(3);
+        updateKnobIndicators();
+    });
+    xwSlider.addEventListener('input', () => { 
+        rotationRates[2] = parseFloat(xwSlider.value); 
+        xwValue.textContent = parseFloat(xwSlider.value).toFixed(3);
+        updateKnobIndicators();
+    });
+    yzSlider.addEventListener('input', () => { 
+        rotationRates[3] = parseFloat(yzSlider.value); 
+        yzValue.textContent = parseFloat(yzSlider.value).toFixed(3);
+        updateKnobIndicators();
+    });
+    ywSlider.addEventListener('input', () => { 
+        rotationRates[4] = parseFloat(ywSlider.value); 
+        ywValue.textContent = parseFloat(ywSlider.value).toFixed(3);
+        updateKnobIndicators();
+    });
+    zwSlider.addEventListener('input', () => { 
+        rotationRates[5] = parseFloat(zwSlider.value); 
+        zwValue.textContent = parseFloat(zwSlider.value).toFixed(3);
+        updateKnobIndicators();
+    });
     
     // Add event listeners for reset buttons
     xyResetBtn.addEventListener('click', () => { resetRotationRate(0); });
@@ -435,8 +614,17 @@ function init() {
     ywResetBtn.addEventListener('click', () => { resetRotationRate(4); });
     zwResetBtn.addEventListener('click', () => { resetRotationRate(5); });
     
-    // Initialize slider values from default rotation rates
+    // Initialize slider values and knob indicators
     updateSliderValues();
+    updateKnobIndicators();
+    
+    // Position the controls initially
+    // Wait for canvas to be properly sized
+    setTimeout(() => {
+        handleResize();
+        toggleControls(); // Start with controls expanded
+        positionControlsPanel();
+    }, 100);
     
     // Start animation loop
     requestAnimationFrame(animate);
@@ -445,7 +633,7 @@ function init() {
 // Event handlers
 function handleResize() {
     // Get the container width for responsive sizing
-    const container = document.getElementById('container');
+    const container = document.getElementById('canvas-container');
     const containerWidth = container.clientWidth;
     
     // Set canvas size based on container
@@ -456,6 +644,9 @@ function handleResize() {
     canvas.height = height;
     
     scale = calculateScale();
+    
+    // Reposition controls when canvas size changes
+    positionControlsPanel();
 }
 
 function handleWheel(event) {
@@ -505,6 +696,7 @@ function handleMouseMove(event) {
         
         // Update slider values to reflect the new rotation rates
         updateSliderValues();
+        updateKnobIndicators();
         
         previousMousePos = currentMousePos;
     }
@@ -547,14 +739,6 @@ function animate() {
     ctx.fillStyle = BLACK;
     ctx.fillRect(0, 0, width, height);
     
-    // Draw vertices
-    ctx.fillStyle = WHITE;
-    for (const point of screenPoints) {
-        ctx.beginPath();
-        ctx.arc(point[0], point[1], 3, 0, 2 * Math.PI);
-        ctx.fill();
-    }
-    
     // Draw edges
     ctx.strokeStyle = WHITE;
     ctx.lineWidth = 1;
@@ -565,6 +749,19 @@ function animate() {
         ctx.moveTo(start[0], start[1]);
         ctx.lineTo(end[0], end[1]);
         ctx.stroke();
+    }
+    
+    // Draw vertices
+    ctx.fillStyle = WHITE;
+    for (const point of screenPoints) {
+        ctx.beginPath();
+        ctx.arc(point[0], point[1], 3, 0, 2 * Math.PI);
+        ctx.fill();
+    }
+    
+    // Check if the controls need to be positioned (initial load)
+    if (!controlsPosUpdated) {
+        positionControlsPanel();
     }
     
     // Continue animation loop

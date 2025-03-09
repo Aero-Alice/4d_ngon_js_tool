@@ -5,161 +5,371 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>4D</title>
     <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
         body {
             margin: 0;
             padding: 0;
             background-color: #000;
+            font-family: 'Courier New', monospace;
+            color: white;
+            overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            overflow: hidden;
         }
         
-        #container {
+        #main-container {
+            position: relative;
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+            height: 100vh;
+            max-height: 800px;
+        }
+        
+        #canvas-container {
+            position: relative;
+            flex-grow: 1;
             display: flex;
             flex-direction: column;
+            justify-content: center;
             align-items: center;
-            width: 100%;
-            max-width: 800px;
+            margin-right: 80px; /* Make space for the collapsed control button */
         }
         
         #canvas {
             background-color: black;
             border: 1px solid white;
-            margin-bottom: 20px;
-        }
-        
-        #controls {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: 10px;
-        }
-        .slider-container {
-            width: 80%;
-            margin: 10px 0;
-            display: flex;
-            align-items: center;
-        }
-        
-        .slider-label {
-            width: 80px;
-            margin-right: 10px;
-            color: white;
-        }
-        
-        .slider {
-            flex-grow: 1;
-            -webkit-appearance: none;
-            background: black;
-            border: 1px solid white;
-            height: 8px;
-            border-radius: 4px;
-        }
-        
-        .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 16px;
-            height: 16px;
-            background: white;
-            border: 1px solid black;
-            border-radius: 50%;
-            cursor: pointer;
-        }
-        
-        .slider::-moz-range-thumb {
-            width: 16px;
-            height: 16px;
-            background: white;
-            border: 1px solid black;
-            border-radius: 50%;
-            cursor: pointer;
         }
         
         #shape-name {
             height: 20px;
-            margin: 10px 0;
+            margin-bottom: 10px;
+        }
+        
+        /* Floating controls */
+        #controls-container {
+            position: absolute;
+            /* Initial position will be set by JavaScript to align with canvas */
+            width: 60px;
+            height: 60px;
+            transition: width 0.3s ease, height 0.3s ease, opacity 0.3s ease;
+            background-color: rgba(0, 0, 0, 0.9);
+            border: 1px solid white;
+            z-index: 100;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            border-radius: 50%;
+        }
+        
+        #controls-container.expanded {
+            width: 320px;
+            height: auto;
+            border-radius: 0;
+            padding-bottom: 15px;
+        }
+        
+        #controls-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            background-color: #111;
+            cursor: move;
+        }
+        
+        #controls-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            white-space: nowrap;
+        }
+        
+        #controls-container.expanded #controls-title {
+            opacity: 1;
+        }
+        
+        #toggle-controls {
+            background-color: black;
+            border: 1px solid white;
+            color: white;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            border-radius: 50%;
+            font-size: 18px;
+            transition: all 0.2s ease;
+        }
+        
+        #controls-container:not(.expanded) #toggle-controls {
+            width: 60px;
+            height: 60px;
+            border-width: 2px;
+            font-size: 24px;
+        }
+        
+        #toggle-controls:hover {
+            background-color: #333;
+        }
+        
+        #controls-inner {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: auto;
+        }
+        
+        .control-group {
+            width: 100%;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .control-group h3 {
+            margin-bottom: 15px;
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        
+        .knob-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 100%;
+        }
+        
+        .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .knob-label {
+            margin-bottom: 5px;
+            font-size: 12px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        
+        .knob {
+            position: relative;
+            width: 50px;
+            height: 50px;
+        }
+        
+        .knob-control {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: black;
+            border: 2px solid white;
+            outline: none;
+            cursor: pointer;
+            transform: rotate(0deg);
+            transition: box-shadow 0.2s ease;
+        }
+        
+        .knob-control::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+        }
+        
+        .knob-control::-moz-range-thumb {
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+        }
+        
+        .knob-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 25px;
+            background-color: white;
+            transform-origin: bottom center;
+            transform: translateX(-50%) translateY(-100%);
+            pointer-events: none;
+        }
+        
+        .knob-value {
+            margin-top: 3px;
+            font-size: 9px;
+            font-family: monospace;
+        }
+        
+        .reset-btn {
+            background-color: black;
+            border: 1px solid white;
+            color: white;
+            width: 20px;
+            height: 16px;
+            font-size: 9px;
+            cursor: pointer;
+            margin-top: 2px;
+        }
+        
+        .reset-btn:hover {
+            background-color: #333;
+        }
+        
+        .control-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 15px;
         }
         
         button {
             background-color: black;
             border: 1px solid white;
-            width: 40px;
-            height: 40px;
-            border-radius: 20px;
-            cursor: pointer;
-            margin: 10px 2px;
             color: white;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-size: 12px;
+            transition: background-color 0.2s ease;
         }
         
         button:hover {
-            background-color: white;
-            color: black;
+            background-color: #333;
         }
         
-        .reset-btn {
-            width: 30px;
-            height: 30px;
-            margin-left: 10px;
-            font-size: 12px;
-        }
-        
-        #speed-value {
+        /* Collapsed state - show only icon */
+        #controls-container:not(.expanded) #controls-inner {
             display: none;
+        }
+        
+        #controls-container:not(.expanded) {
+            background-color: black;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+        
+        #controls-container:not(.expanded) #controls-header {
+            border: none;
+            background-color: transparent;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #controls-container:not(.expanded) #toggle-controls {
+            position: static;
+            transform: none;
         }
     </style>
 </head>
 <body>
-    <div id="container">
-        <div id="shape-name"></div>
-        <canvas id="canvas" width="800" height="600"></canvas>
-        
-        <div id="controls">
-            <div class="slider-container">
-                <span class="slider-label">XY Rotation:</span>
-                <input type="range" min="-0.05" max="0.05" step="0.001" value="0.01" class="slider" id="xy-slider">
-                <button class="reset-btn" id="xy-reset">0</button>
-            </div>
-            
-            <div class="slider-container">
-                <span class="slider-label">XZ Rotation:</span>
-                <input type="range" min="-0.05" max="0.05" step="0.001" value="0.01" class="slider" id="xz-slider">
-                <button class="reset-btn" id="xz-reset">0</button>
-            </div>
-            
-            <div class="slider-container">
-                <span class="slider-label">XW Rotation:</span>
-                <input type="range" min="-0.05" max="0.05" step="0.001" value="0.01" class="slider" id="xw-slider">
-                <button class="reset-btn" id="xw-reset">0</button>
-            </div>
-            
-            <div class="slider-container">
-                <span class="slider-label">YZ Rotation:</span>
-                <input type="range" min="-0.05" max="0.05" step="0.001" value="0.01" class="slider" id="yz-slider">
-                <button class="reset-btn" id="yz-reset">0</button>
-            </div>
-            
-            <div class="slider-container">
-                <span class="slider-label">YW Rotation:</span>
-                <input type="range" min="-0.05" max="0.05" step="0.001" value="0.01" class="slider" id="yw-slider">
-                <button class="reset-btn" id="yw-reset">0</button>
-            </div>
-            
-            <div class="slider-container">
-                <span class="slider-label">ZW Rotation:</span>
-                <input type="range" min="-0.05" max="0.05" step="0.001" value="0.01" class="slider" id="zw-slider">
-                <button class="reset-btn" id="zw-reset">0</button>
-            </div>
-            
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button id="change-shape-btn"></button>
-                <button id="free-rotation-btn">Free</button>
-            </div>
+    <div id="main-container">
+        <div id="canvas-container">
+            <div id="shape-name"></div>
+            <canvas id="canvas" width="800" height="600"></canvas>
         </div>
         
+        <div id="controls-container">
+            <div id="controls-header">
+                <div id="controls-title">4D Controls</div>
+                <button id="toggle-controls">≡</button>
+            </div>
+            <div id="controls-inner">
+                <div class="control-group">
+                    <h3>4D Rotation Controls</h3>
+                    
+                    <div class="knob-grid">
+                        <div class="knob-container">
+                            <span class="knob-label">XY</span>
+                            <div class="knob">
+                                <input type="range" min="-0.05" max="0.05" step="0.001" value="0.01" class="knob-control" id="xy-slider">
+                                <div class="knob-indicator" id="xy-indicator"></div>
+                            </div>
+                            <div class="knob-value" id="xy-value">0.01</div>
+                            <button class="reset-btn" id="xy-reset">0</button>
+                        </div>
+                        
+                        <div class="knob-container">
+                            <span class="knob-label">XZ</span>
+                            <div class="knob">
+                                <input type="range" min="-0.05" max="0.05" step="0.001" value="0.01" class="knob-control" id="xz-slider">
+                                <div class="knob-indicator" id="xz-indicator"></div>
+                            </div>
+                            <div class="knob-value" id="xz-value">0.01</div>
+                            <button class="reset-btn" id="xz-reset">0</button>
+                        </div>
+                    
+                        <div class="knob-container">
+                            <span class="knob-label">XW</span>
+                            <div class="knob">
+                                <input type="range" min="-0.05" max="0.05" step="0.001" value="0.01" class="knob-control" id="xw-slider">
+                                <div class="knob-indicator" id="xw-indicator"></div>
+                            </div>
+                            <div class="knob-value" id="xw-value">0.01</div>
+                            <button class="reset-btn" id="xw-reset">0</button>
+                        </div>
+                        
+                        <div class="knob-container">
+                            <span class="knob-label">YZ</span>
+                            <div class="knob">
+                                <input type="range" min="-0.05" max="0.05" step="0.001" value="0.01" class="knob-control" id="yz-slider">
+                                <div class="knob-indicator" id="yz-indicator"></div>
+                            </div>
+                            <div class="knob-value" id="yz-value">0.01</div>
+                            <button class="reset-btn" id="yz-reset">0</button>
+                        </div>
+                        
+                        <div class="knob-container">
+                            <span class="knob-label">YW</span>
+                            <div class="knob">
+                                <input type="range" min="-0.05" max="0.05" step="0.001" value="0.01" class="knob-control" id="yw-slider">
+                                <div class="knob-indicator" id="yw-indicator"></div>
+                            </div>
+                            <div class="knob-value" id="yw-value">0.01</div>
+                            <button class="reset-btn" id="yw-reset">0</button>
+                        </div>
+                        
+                        <div class="knob-container">
+                            <span class="knob-label">ZW</span>
+                            <div class="knob">
+                                <input type="range" min="-0.05" max="0.05" step="0.001" value="0.01" class="knob-control" id="zw-slider">
+                                <div class="knob-indicator" id="zw-indicator"></div>
+                            </div>
+                            <div class="knob-value" id="zw-value">0.01</div>
+                            <button class="reset-btn" id="zw-reset">0</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-buttons">
+                    <button id="change-shape-btn">Shape</button>
+                    <button id="free-rotation-btn">Free</button>
+                </div>
+            </div>
+        </div>
     </div>
     <script src="4dngon.js"></script>
 </body>
