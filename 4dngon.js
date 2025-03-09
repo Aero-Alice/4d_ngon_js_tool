@@ -58,7 +58,7 @@ const BLACK = 'rgb(0, 0, 0)';
 const WHITE = 'rgb(255, 255, 255)';
 
 // State variables
-let zoomFactor = 4.0; // Start with higher zoom 
+let zoomFactor = 10.0; // Start with higher zoom 
 let angles = [0, 0, 0, 0, 0, 0]; // XY, XZ, XW, YZ, YW, ZW rotation angles
 let rotationRates = [0, 0, 0, 0, 0, 0]; // Will be set to random small values on init
 let currentShapeIndex = 0;
@@ -71,10 +71,6 @@ let previousMousePos = { x: 0, y: 0 };
 let freeRotation = true;
 let controlsExpanded = false;
 let controlsPosUpdated = false;
-
-// Drag functionality variables
-let isDraggingControls = false;
-let controlsOffset = { x: 0, y: 0 };
 
 // Math helper functions
 const sin = Math.sin;
@@ -349,26 +345,32 @@ function calculateScale() {
 function positionControlsPanel() {
     const canvasRect = canvas.getBoundingClientRect();
     
-    // Position control container relative to canvas
-    const rightEdgeOfCanvas = canvasRect.right;
-    const verticalCenter = canvasRect.top + canvasRect.height / 2;
-    
     if (!controlsExpanded) {
-        // Collapsed state
-        const buttonSize = 60;
-        controlsContainer.style.left = `${rightEdgeOfCanvas + 20}px`;
-        controlsContainer.style.top = `${verticalCenter - buttonSize / 2}px`;
+        // Collapsed state - align to right and vertically center
+        controlsContainer.style.right = '0px';
+        controlsContainer.style.top = '50%';
+        controlsContainer.style.transform = 'translateY(-50%)';
+        controlsContainer.style.left = 'auto';
     } else {
-        // Expanded state
-        controlsContainer.style.left = `${rightEdgeOfCanvas + 20}px`;
-        controlsContainer.style.top = `${canvasRect.top}px`;
-    }
-    
-    if (!isDraggingControls) {
+        // Expanded state - align to right and top
+        controlsContainer.style.right = '0px';
+        controlsContainer.style.top = '20px';
         controlsContainer.style.transform = 'none';
+        controlsContainer.style.left = 'auto';
     }
     
-    controlsContainer.style.right = 'auto';
+    // Ensure controls don't overlap with canvas
+    const controlsWidth = controlsExpanded ? 320 : 40;
+    const minRightSpace = controlsWidth + 5; // Add a small buffer
+    
+    // Adjust canvas container if needed
+    const mainContainer = document.getElementById('main-container');
+    const availableWidth = mainContainer.clientWidth;
+    const canvasMaxWidth = availableWidth - minRightSpace;
+    
+    // Set canvas max-width to prevent overlap
+    canvas.style.maxWidth = `${canvasMaxWidth}px`;
+    
     controlsPosUpdated = true;
 }
 
@@ -455,41 +457,7 @@ function handleResize() {
     positionControlsPanel();
 }
 
-function handleControlsDragStart(e) {
-    if (e.target === controlsHeader || e.target.parentNode === controlsHeader || !controlsExpanded) {
-        isDraggingControls = true;
-        
-        const rect = controlsContainer.getBoundingClientRect();
-        controlsOffset = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
-        };
-        
-        e.preventDefault();
-    }
-}
-
-function handleControlsDragMove(e) {
-    if (isDraggingControls) {
-        const newLeft = e.clientX - controlsOffset.x;
-        const newTop = e.clientY - controlsOffset.y;
-        
-        const maxLeft = window.innerWidth - controlsContainer.offsetWidth;
-        const maxTop = window.innerHeight - controlsContainer.offsetHeight;
-        
-        controlsContainer.style.left = `${Math.max(0, Math.min(newLeft, maxLeft))}px`;
-        controlsContainer.style.top = `${Math.max(0, Math.min(newTop, maxTop))}px`;
-        
-        controlsContainer.style.transform = 'none';
-        controlsContainer.style.right = 'auto';
-        
-        e.preventDefault();
-    }
-}
-
-function handleControlsDragEnd() {
-    isDraggingControls = false;
-}
+// No drag handlers needed as controls are fixed in position
 
 // Handle knob wheel events - this is one of the key new features
 function handleKnobWheel(e) {
@@ -673,11 +641,8 @@ function init() {
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('mousedown', handleKnobMiddleClick);
     
-    // Controls toggle and drag
+    // Controls toggle only (no drag)
     toggleControlsBtn.addEventListener('click', toggleControls);
-    controlsContainer.addEventListener('mousedown', handleControlsDragStart);
-    window.addEventListener('mousemove', handleControlsDragMove);
-    window.addEventListener('mouseup', handleControlsDragEnd);
     
     // Shape change and free rotation buttons
     changeShapeBtn.addEventListener('click', changeShape);

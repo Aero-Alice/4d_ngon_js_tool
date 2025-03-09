@@ -40,7 +40,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            margin-right: 80px; /* Make space for the collapsed control button */
+            margin-right: 0; /* Remove margin as we'll position controls absolutely */
         }
         
         #canvas {
@@ -53,25 +53,28 @@
             margin-bottom: 10px;
         }
         
-        /* Floating controls */
+        /* Fixed position controls */
         #controls-container {
             position: absolute;
-            /* Initial position will be set by JavaScript to align with canvas */
-            width: 60px;
-            height: 60px;
+            right: 200px;
+            width: 40px;
+            height: auto;
             transition: width 0.3s ease, height 0.3s ease, opacity 0.3s ease;
             background-color: rgba(0, 0, 0, 0.9);
             border: 1px solid white;
             z-index: 100;
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
             overflow: hidden;
-            border-radius: 50%;
+            border-radius: 0;
         }
         
         #controls-container.expanded {
             width: 320px;
             height: auto;
-            border-radius: 0;
+            top: 15% !important;
+            right: -10% !important;
+
+            transform: none;
             padding-bottom: 15px;
         }
         
@@ -82,7 +85,6 @@
             padding: 10px;
             border-bottom: 1px solid #333;
             background-color: #111;
-            cursor: move;
         }
         
         #controls-title {
@@ -102,23 +104,22 @@
             background-color: black;
             border: 1px solid white;
             color: white;
-            width: 40px;
-            height: 40px;
+            width: 30px;
+            height: 30px;
             cursor: pointer;
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 20;
-            border-radius: 50%;
             font-size: 18px;
             transition: all 0.2s ease;
         }
         
         #controls-container:not(.expanded) #toggle-controls {
-            width: 60px;
-            height: 60px;
-            border-width: 2px;
-            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            border-width: 1px;
+            font-size: 18px;
         }
         
         #toggle-controls:hover {
@@ -258,7 +259,7 @@
             background-color: #333;
         }
         
-        /* Collapsed state - show only icon */
+        /* Collapsed state styling */
         #controls-container:not(.expanded) #controls-inner {
             display: none;
         }
@@ -266,22 +267,19 @@
         #controls-container:not(.expanded) {
             background-color: black;
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+            width: 40px;
         }
         
         #controls-container:not(.expanded) #controls-header {
-            border: none;
-            background-color: transparent;
             padding: 0;
-            height: 100%;
-            width: 100%;
+            height: 40px;
+            width: 40px;
             display: flex;
             justify-content: center;
-            align-items: center;
-        }
+            align-items: center;       }
         
-        #controls-container:not(.expanded) #toggle-controls {
-            position: static;
-            transform: none;
+        #controls-container:not(.expanded) #controls-title {
+            display: none;
         }
     </style>
 </head>
