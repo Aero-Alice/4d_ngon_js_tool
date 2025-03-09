@@ -8,17 +8,18 @@ let width = canvas.width;
 let height = canvas.height;
 
 // UI elements
-const speedSlider = document.getElementById('speed-slider');
-const speedValue = document.getElementById('speed-value');
 const shapeNameElement = document.getElementById('shape-name');
 const changeShapeBtn = document.getElementById('change-shape-btn');
+const xySlider = document.getElementById('xy-slider');
+const xzSlider = document.getElementById('xz-slider');
+const zySlider = document.getElementById('zy-slider');
+const freeRotationBtn = document.getElementById('free-rotation-btn');
 
 // Colors
 const BLACK = 'rgb(0, 0, 0)';
 const WHITE = 'rgb(255, 255, 255)';
 
 // State variables
-let rotationSpeed = 0.02;
 let zoomFactor = 1.0;
 let angles = [0, 0, 0, 0, 0, 0]; // XY, XZ, XW, YZ, YW, ZW
 let currentShapeIndex = 0;
@@ -29,6 +30,7 @@ let scale = calculateScale();
 let isMouseRotating = false;
 let previousMousePos = { x: 0, y: 0 };
 let manualRotation = false;
+let freeRotation = false;
 
 // Math helper functions
 const sin = Math.sin;
@@ -378,14 +380,25 @@ function init() {
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('keydown', handleKeyDown);
     
-    speedSlider.addEventListener('input', function() {
-        rotationSpeed = parseFloat(this.value);
-        if (speedValue) {
-            speedValue.textContent = '';
-        }
+    changeShapeBtn.addEventListener('click', changeShape);
+    
+    // Add event listeners for new controls
+    xySlider.addEventListener('input', () => {
+        angles[0] = parseFloat(xySlider.value);
     });
     
-    changeShapeBtn.addEventListener('click', changeShape);
+    xzSlider.addEventListener('input', () => {
+        angles[1] = parseFloat(xzSlider.value);
+    });
+    
+    zySlider.addEventListener('input', () => {
+        angles[2] = parseFloat(zySlider.value);
+    });
+
+    freeRotationBtn.addEventListener('click', () => {
+        freeRotation = !freeRotation;
+        freeRotationBtn.textContent = freeRotation ? "Stop" : "Free";
+    });
     
     // Start animation loop
     requestAnimationFrame(animate);
@@ -463,11 +476,16 @@ function handleKeyDown(event) {
 
 // Animation loop
 function animate() {
-    // Update rotation angles automatically if not manually rotating
-    if (!manualRotation) {
-        for (let i = 0; i < angles.length; i++) {
-            angles[i] += rotationSpeed;
-        }
+    // Update rotation angles if in free rotation mode
+    if (freeRotation) {
+        angles[0] += 0.02; // XY rotation
+        angles[1] += 0.02; // XZ rotation
+        angles[2] += 0.02; // ZY rotation
+        
+        // Update slider positions to reflect current angles
+        xySlider.value = angles[0];
+        xzSlider.value = angles[1];
+        zySlider.value = angles[2];
     }
     
     // Rotate and project

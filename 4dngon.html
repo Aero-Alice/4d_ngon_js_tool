@@ -26,7 +26,7 @@
         
         #canvas {
             background-color: black;
-            border: 1px solid #222;
+            border: 1px solid white;
             margin-bottom: 20px;
         }
         
@@ -52,6 +52,31 @@
         
         .slider {
             flex-grow: 1;
+            -webkit-appearance: none;
+            background: black;
+            border: 1px solid white;
+            height: 8px;
+            border-radius: 4px;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border: 1px solid black;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: white;
+            border: 1px solid black;
+            border-radius: 50%;
+            cursor: pointer;
         }
         
         #shape-name {
@@ -60,17 +85,19 @@
         }
         
         button {
-            background-color: #333;
-            border: none;
+            background-color: black;
+            border: 1px solid white;
             width: 40px;
             height: 40px;
             border-radius: 20px;
             cursor: pointer;
             margin: 10px 2px;
+            color: white;
         }
         
         button:hover {
-            background-color: #444;
+            background-color: white;
+            color: black;
         }
         
         #speed-value {
@@ -85,12 +112,24 @@
         
         <div id="controls">
             <div class="slider-container">
-                <span class="slider-label"></span>
-                <input type="range" min="0" max="0.05" step="0.001" value="0.02" class="slider" id="speed-slider">
-                <span id="speed-value"></span>
+                <span class="slider-label">XY</span>
+                <input type="range" min="-1" max="1" step="0.01" value="0" class="slider" id="xy-slider">
             </div>
             
-            <button id="change-shape-btn"></button>
+            <div class="slider-container">
+                <span class="slider-label">XZ</span>
+                <input type="range" min="-1" max="1" step="0.01" value="0" class="slider" id="xz-slider">
+            </div>
+            
+            <div class="slider-container">
+                <span class="slider-label">ZY</span>
+                <input type="range" min="-1" max="1" step="0.01" value="0" class="slider" id="zy-slider">
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button id="change-shape-btn"></button>
+                <button id="free-rotation-btn">Free</button>
+            </div>
         </div>
         
     </div>
